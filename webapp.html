@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PhotoBot v6</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root {
+  --accent:#007AFF; --bg:#F2F2F7; --card:#FFFFFF;
+  --label:#000; --label2:#3C3C43; --label3:rgba(60,60,67,.6); --label4:rgba(60,60,67,.18);
+  --sep:rgba(60,60,67,.12); --fill:rgba(120,120,128,.12); --fill2:rgba(120,120,128,.20);
+  --green:#34C759; --red:#FF3B30; --orange:#FF9500; --purple:#AF52DE; --teal:#5AC8FA;
+  --sh:0 1px 2px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --r:12px; --rl:16px; --tabh:82px;
+  --font:-apple-system,"SF Pro Text",BlinkMacSystemFont,sans-serif;
+  --mono:"SF Mono","Menlo",monospace;
+  --round:-apple-system,"SF Pro Rounded","SF Pro Text",BlinkMacSystemFont,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;width:100%;font-family:var(--font);background:var(--bg);color:var(--label);overflow:hidden;-webkit-font-smoothing:antialiased}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+.scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:16px 16px calc(var(--tabh)+16px);scroll-behavior:smooth}
+.scroll::-webkit-scrollbar{display:none}
+.page{display:none}.page.active{display:block;animation:fu .22s ease}
+@keyframes fu{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* tabbar */
+.tabbar{position:fixed;bottom:0;left:0;right:0;height:var(--tabh);background:rgba(255,255,255,.94);
+  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-top:.5px solid var(--sep);display:flex;align-items:flex-start;padding-top:8px;z-index:100;
+  overflow-x:auto;overflow-y:hidden}
+.tabbar::-webkit-scrollbar{display:none}
+.ti{min-width:52px;flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:4px 2px 0;cursor:pointer;border:none;background:none;color:var(--label3);
+  font-size:9px;font-weight:500;transition:color .15s;-webkit-user-select:none;user-select:none}
+.ti.active{color:var(--accent)}.ti svg{width:22px;height:22px;transition:transform .12s}.ti:active svg{transform:scale(.85)}
+
+/* typography */
+.pt{font-size:28px;font-weight:700;letter-spacing:-.5px;padding:8px 2px 4px}
+.sh{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--label3);
+  padding:0 6px 8px;margin-top:20px}
+.sh:first-child{margin-top:4px}
+
+/* card & row */
+.card{background:var(--card);border-radius:var(--rl);box-shadow:var(--sh);overflow:hidden;margin-bottom:10px}
+.row{display:flex;align-items:center;padding:13px 16px;gap:12px;position:relative}
+.row+.row::before{content:'';position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+.rl{flex:1;font-size:17px;letter-spacing:-.24px}.rl.sm{font-size:15px;color:var(--label2)}
+.rv{font-size:15px;color:var(--label3)}.chev{color:var(--label4);flex-shrink:0}
+
+/* toggle */
+.tog{width:51px;height:31px;flex-shrink:0}.tog input{display:none}
+.tog-t{width:51px;height:31px;border-radius:15.5px;background:var(--fill2);cursor:pointer;position:relative;transition:background .25s;display:block}
+.tog input:checked+.tog-t{background:var(--green)}
+.tog-th{position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;
+  background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.1);
+  transition:transform .25s cubic-bezier(.4,0,.2,1)}
+.tog input:checked+.tog-t .tog-th{transform:translateX(20px)}
+
+/* slider */
+.sw{padding:2px 16px 14px}
+.sm-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px}
+.sm-row .sm{font-size:15px;color:var(--label2)}.sm-row .v{font-size:15px;font-weight:600;color:var(--accent)}
+.sl-labs{display:flex;justify-content:space-between;font-size:11px;color:var(--label3);margin-top:2px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--fill2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;
+  background:#fff;margin-top:-9px;box-shadow:0 2px 8px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.1);transition:transform .1s}
+input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15)}
+
+/* buttons */
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;
+  font-family:var(--font);font-weight:600;letter-spacing:-.24px;border-radius:var(--r);
+  transition:opacity .12s,transform .1s;-webkit-user-select:none;user-select:none}
+.btn:active{opacity:.7;transform:scale(.97)}
+.bp{background:var(--accent);color:#fff;padding:14px 20px;font-size:17px;width:100%;border-radius:var(--rl);box-shadow:0 2px 12px rgba(0,122,255,.3)}
+.bs{background:var(--fill);color:var(--accent);padding:10px 20px;font-size:15px;border-radius:var(--r)}
+.bsm{padding:8px 14px;font-size:14px;border-radius:10px}
+.bg{background:var(--green);color:#fff;padding:12px 20px;font-size:15px;font-weight:600;border-radius:var(--r);flex:1;box-shadow:0 2px 10px rgba(52,199,89,.28)}
+.br{background:var(--red);color:#fff;padding:12px 20px;font-size:15px;font-weight:600;border-radius:var(--r);flex:1;box-shadow:0 2px 10px rgba(255,59,48,.28)}
+.bo{background:var(--orange);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:var(--r);box-shadow:0 2px 8px rgba(255,149,0,.28)}
+.bpu{background:var(--purple);color:#fff;padding:10px 16px;font-size:14px;font-weight:600;border-radius:var(--r);box-shadow:0 2px 8px rgba(175,82,222,.28)}
+.brow{display:flex;gap:8px;margin-bottom:10px}
+
+/* fields */
+.tf{width:100%;background:var(--fill);border:none;outline:none;border-radius:var(--r);padding:12px 14px;
+  font-size:15px;font-family:var(--font);color:var(--label);resize:none;line-height:1.4;transition:background .15s}
+.tf:focus{background:var(--fill2)}.tf::placeholder{color:var(--label3)}
+.inf{flex:1;background:transparent;border:none;outline:none;font-size:17px;font-family:var(--font);color:var(--label);text-align:right}
+.inil{background:var(--fill);border:none;outline:none;border-radius:8px;padding:6px 10px;font-size:14px;font-family:var(--font);color:var(--label)}
+
+/* progress */
+.pb{height:6px;background:var(--fill2);border-radius:3px;overflow:hidden}
+.pf{height:100%;background:linear-gradient(90deg,var(--accent),var(--teal));border-radius:3px;width:0%;transition:width .3s ease;position:relative;overflow:hidden}
+.pf::after{content:'';position:absolute;top:0;left:-100%;right:0;bottom:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.4),transparent);animation:shi 1.4s infinite}
+@keyframes shi{to{left:100%;right:-100%}}
+.gs{font-size:13px;color:var(--label3);text-align:center;margin-top:6px;min-height:18px;font-weight:500}
+
+/* photo */
+.pc{background:var(--card);border-radius:20px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.06);
+  overflow:hidden;margin-bottom:10px;aspect-ratio:1;display:flex;align-items:center;justify-content:center;position:relative}
+.pph{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--label4);font-size:14px}
+.pph svg{opacity:.35}.pimg{width:100%;height:100%;object-fit:cover;display:none}
+.pov{position:absolute;bottom:0;left:0;right:0;padding:32px 14px 14px;
+  background:linear-gradient(to top,rgba(0,0,0,.5),transparent);display:none}
+.pts{color:rgba(255,255,255,.75);font-size:12px;font-weight:500}
+.ppt{font-size:11px;color:rgba(255,255,255,.6);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* badge */
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:4px 10px;border-radius:20px}
+.bd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.bon{background:rgba(52,199,89,.14);color:var(--green)}.bon .bd{background:var(--green);animation:pu 2s infinite}
+.boff{background:rgba(255,59,48,.1);color:var(--red)}.boff .bd{background:var(--red)}
+.bwarn{background:rgba(255,149,0,.12);color:var(--orange)}.bwarn .bd{background:var(--orange)}
+@keyframes pu{0%,100%{box-shadow:0 0 0 2px rgba(52,199,89,.2)}50%{box-shadow:0 0 0 4px rgba(52,199,89,.1)}}
+
+/* segmented */
+.seg{display:flex;background:var(--fill);border-radius:9px;padding:2px;gap:2px}
+.sb{flex:1;border:none;background:transparent;padding:7px 4px;font-size:13px;font-weight:600;
+  color:var(--label3);border-radius:7px;cursor:pointer;font-family:var(--font);transition:all .18s;-webkit-user-select:none;user-select:none}
+.sb.active{background:#fff;color:var(--label);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* vram */
+.vw{padding:4px 16px 16px}
+.vh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.vt{font-size:13px;font-weight:600;color:var(--label3)}.vp{font-size:17px;font-weight:700;color:var(--label)}
+.vtr{height:10px;background:var(--fill2);border-radius:5px;overflow:hidden}
+.vf{height:100%;border-radius:5px;transition:width .6s cubic-bezier(.4,0,.2,1),background .4s;background:linear-gradient(90deg,var(--green),#30D158)}
+.vf.warn{background:linear-gradient(90deg,var(--orange),#FF9F0A)}.vf.danger{background:linear-gradient(90deg,var(--red),#FF453A)}
+
+/* big num */
+.bn{text-align:center;padding:22px 16px 6px;font-size:52px;font-weight:700;letter-spacing:-2px;
+  color:var(--label);font-family:var(--round);font-variant-numeric:tabular-nums}
+.bnl{font-size:13px;color:var(--label3);font-weight:500;text-align:center;padding-bottom:16px}
+
+/* log viewer */
+.lv{background:#1a1a1e;border-radius:var(--rl);padding:14px;margin-bottom:10px;max-height:300px;overflow-y:auto;
+  font-family:var(--mono);font-size:11.5px;line-height:1.55;color:#e0e0e0}
+.lv::-webkit-scrollbar{width:4px}.lv::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.ll{display:block;padding:1px 0;border-bottom:.5px solid rgba(255,255,255,.04)}.ll:last-child{border:none}
+.li{color:#64d2ff}.lw{color:#ffd60a}.le{color:#ff453a}.ld{color:#98989e}.lok{color:#30d158}
+.lc{display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+
+/* file tree */
+.fi{display:flex;align-items:center;padding:9px 14px;gap:10px;cursor:pointer;transition:background .1s;-webkit-user-select:none;user-select:none}
+.fi:active{background:var(--fill)}.fi+.fi{border-top:.5px solid var(--sep)}
+.fic{font-size:17px;flex-shrink:0}.fn{flex:1;font-size:14px;color:var(--label);font-family:var(--mono)}
+.fd{color:var(--accent);font-weight:600}.fsz{font-size:12px;color:var(--label3)}
+
+/* backup */
+.bki{display:flex;align-items:center;padding:10px 16px;gap:10px}
+.bki+.bki{border-top:.5px solid var(--sep)}
+.bkm{flex:1}.bkn{font-size:14px;font-weight:600;color:var(--label)}.bkt{font-size:12px;color:var(--label3);margin-top:2px}
+
+/* admin */
+.cr{background:#1a1a1e;border-radius:var(--r);padding:12px 14px;font-family:var(--mono);
+  font-size:12px;line-height:1.5;color:#e0e0e0;max-height:200px;overflow-y:auto;
+  margin-top:8px;white-space:pre-wrap;word-break:break-all;display:none}
+.uz{border:2px dashed var(--label4);border-radius:var(--rl);padding:24px;text-align:center;
+  color:var(--label3);font-size:15px;cursor:pointer;transition:border-color .2s,background .2s}
+.uz:hover,.uz.drag{border-color:var(--accent);background:rgba(0,122,255,.04);color:var(--accent)}
+.uz input{display:none}
+.hs{padding:10px 14px;border-radius:var(--r);font-size:14px;font-weight:600;margin-top:8px;display:none}
+.hok{background:rgba(52,199,89,.14);color:var(--green)}.herr{background:rgba(255,59,48,.1);color:var(--red)}
+
+/* prompts */
+.pri{padding:12px 16px}.pri+.pri{border-top:.5px solid var(--sep)}
+.prt{font-size:14px;color:var(--label);line-height:1.4}.prm{font-size:12px;color:var(--label3);margin-top:4px}
+
+/* skeleton */
+.sk{background:linear-gradient(90deg,var(--fill) 25%,var(--fill2) 50%,var(--fill) 75%);
+  background-size:200% 100%;animation:skp 1.4s infinite;border-radius:6px}
+@keyframes skp{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skh{height:52px;margin-bottom:1px;border-radius:0}
+.skh:first-child{border-radius:var(--rl) var(--rl) 0 0}.skh:last-child{border-radius:0 0 var(--rl) var(--rl)}
+
+/* toast */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);
+  background:rgba(30,30,30,.92);color:#fff;padding:10px 18px;border-radius:20px;
+  font-size:14px;font-weight:500;white-space:nowrap;z-index:999;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(10px)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* utils */
+.p16{padding:16px}.mt16{margin-top:16px}.mb16{margin-bottom:16px}.gap8{gap:8px}.w100{width:100%}
+</style>
+</head>
+<body>
+<div id="app">
+<div class="scroll" id="sc">
+
+<!-- ═══════════ GENERATE ═══════════ -->
+<div class="page active" id="page-generate">
+  <div class="pt">Generate</div>
+
+  <div class="pc" id="photoCard">
+    <div class="pph" id="pph">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+      </svg><span>Нет фото</span>
+    </div>
+    <img class="pimg" id="pimg" alt="">
+    <div class="pov" id="pov"><div class="pts" id="pts"></div><div class="ppt" id="ppt"></div></div>
+  </div>
+
+  <div class="card mb16">
+    <div class="p16">
+      <div class="pb"><div class="pf" id="pf"></div></div>
+      <div class="gs" id="gs">Ожидание…</div>
+    </div>
+  </div>
+
+  <div class="card mb16">
+    <div class="p16">
+      <textarea class="tf" id="promptField" placeholder="Кастомный промпт (необязательно)…" rows="3"></textarea>
+    </div>
+  </div>
+
+  <button class="btn bp mb16" id="btnGen" onclick="doGenerate()">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    Сгенерировать фото
+  </button>
+
+  <div class="sh">Последние промпты (/prompts)</div>
+  <div class="card" id="recentPromptsCard">
+    <div class="pri"><div class="prt" style="color:var(--label3)">Нет данных</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ PIPELINE ═══════════ -->
+<div class="page" id="page-pipeline">
+  <div class="pt">Pipeline</div>
+
+  <div class="card">
+    <div class="bn" id="photoCnt">0</div>
+    <div class="bnl">Сгенерировано фото</div>
+    <div class="row" style="border-top:.5px solid var(--sep)">
+      <div class="rl">Автогенерация (/pipeline)</div>
+      <label class="tog"><input type="checkbox" id="autoTog" onchange="onAutoToggle(this)">
+        <div class="tog-t"><div class="tog-th"></div></div></label>
+    </div>
+    <div class="sw">
+      <div class="sm-row"><span class="sm">Задержка (/delay)</span><span class="v" id="delayV">30 с</span></div>
+      <input type="range" id="delaySl" min="0" max="60" value="30" oninput="onDelay(this)">
+      <div class="sl-labs"><span>0</span><span>30</span><span>60 с</span></div>
+    </div>
+  </div>
+
+  <div class="sh">Статус</div>
+  <div class="card">
+    <div class="row"><div class="rl sm">Состояние</div>
+      <span class="badge boff" id="plBadge"><span class="bd"></span> Остановлен</span></div>
+    <div class="row"><div class="rl sm">Следующая генерация</div><span class="rv" id="nextGen">—</span></div>
+    <div class="row"><div class="rl sm">Ошибок</div><span class="rv" id="errCnt">0</span></div>
+    <div class="row"><div class="rl sm">Watchdog</div>
+      <span class="badge bon" id="wdBadge"><span class="bd"></span> Активен</span></div>
+  </div>
+
+  <div class="sh">Категории — импорт/экспорт</div>
+  <div class="card">
+    <div class="row" onclick="sendA('export_categories')" style="cursor:pointer">
+      <div class="rl sm">Экспорт categories.json</div>
+      <svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="row" onclick="sendA('import_categories')" style="cursor:pointer">
+      <div class="rl sm">Импорт (/import)</div>
+      <svg class="chev" width="8" height="14" viewBox="0 0 8 14" fill="none"><path d="M1 1l6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ CATEGORIES ═══════════ -->
+<div class="page" id="page-categories">
+  <div class="pt">Categories</div>
+  <div id="catSk"><div class="card" style="overflow:hidden">
+    <div class="sk skh"></div><div class="sk skh"></div><div class="sk skh"></div>
+    <div class="sk skh"></div><div class="sk skh"></div>
+  </div></div>
+  <div id="catList" style="display:none"></div>
+  <p id="catHint" style="font-size:12px;color:var(--label3);text-align:center;margin-top:4px;display:none">Изменения отправляются боту автоматически</p>
+
+  <div class="sh">Параметры генерации</div>
+  <div class="card">
+    <div class="sw">
+      <div class="sm-row">
+        <span class="sm">Возраст</span>
+        <span class="v" id="ageV">18</span>
+      </div>
+      <input type="range" id="ageSl" min="18" max="30" step="1" value="18" oninput="onAgeSl(this)">
+      <div class="sl-labs"><span>18</span><span>24</span><span>30</span></div>
+    </div>
+    <div class="sw" style="border-top:.5px solid var(--sep);padding-top:10px">
+      <div class="sm-row">
+        <span class="sm">Интенсивность</span>
+        <span class="v" id="intensityV">1</span>
+      </div>
+      <input type="range" id="intensitySl" min="1" max="10" step="1" value="1" oninput="onIntensitySl(this)">
+      <div class="sl-labs"><span>1</span><span>5</span><span>10</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ MODEL ═══════════ -->
+<div class="page" id="page-model">
+  <div class="pt">Model</div>
+
+  <div class="card mb16">
+    <div class="row"><div class="rl">Бэкенд (/setbackend)</div></div>
+    <div style="padding:0 16px 14px">
+      <div class="seg">
+        <button class="sb active" id="seg-comfy" onclick="selectBackend('comfyui',this)">ComfyUI</button>
+        <button class="sb" id="seg-sdxl" onclick="selectBackend('sdxl',this)">SDXL / A1111</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb16">
+    <div class="row">
+      <div class="rl">Статус (/model_status)</div>
+      <span class="badge boff" id="mdlBadge"><span class="bd"></span> Offline</span>
+    </div>
+    <div class="row"><div class="rl sm">GPU</div><span class="rv" id="gpuN">—</span></div>
+    <div class="row"><div class="rl sm">Checkpoint</div>
+      <span class="rv" id="mdlCkpt" style="font-size:12px;max-width:55%;text-align:right;word-break:break-all">—</span></div>
+    <div class="vw">
+      <div class="vh"><span class="vt">VRAM</span><span class="vp" id="vramP">0%</span></div>
+      <div class="vtr"><div class="vf" id="vramF" style="width:0%"></div></div>
+      <div class="sl-labs" style="margin-top:4px"><span id="vramU">0 GB</span><span id="vramT">— GB</span></div>
+    </div>
+  </div>
+
+  <div class="brow">
+    <button class="btn bg" onclick="doModel('start')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Start
+    </button>
+    <button class="btn br" onclick="doModel('stop')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg> Stop
+    </button>
+  </div>
+
+  <div class="sh">Загруженные модели</div>
+  <div class="card" id="mdlList">
+    <div class="row"><div class="rl sm" style="color:var(--label4)">Нет данных</div></div>
+  </div>
+
+  <div class="sh">Параметры сэмплера</div>
+  <div class="card">
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <div class="rl sm" style="flex:none">Sampler</div>
+      <div class="seg" style="flex:1">
+        <button class="sb active" onclick="setSampler('dpmpp_2m',this)">DPM++ 2M</button>
+        <button class="sb" onclick="setSampler('euler_a',this)">Euler A</button>
+        <button class="sb" onclick="setSampler('ddim',this)">DDIM</button>
+      </div>
+    </div>
+    <div class="row" style="flex-wrap:wrap;gap:8px">
+      <div class="rl sm" style="flex:none">Scheduler</div>
+      <div class="seg" style="flex:1">
+        <button class="sb active" onclick="setScheduler('karras',this)">Karras</button>
+        <button class="sb" onclick="setScheduler('normal',this)">Normal</button>
+        <button class="sb" onclick="setScheduler('simple',this)">Simple</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ SETTINGS ═══════════ -->
+<div class="page" id="page-settings">
+  <div class="pt">Settings</div>
+
+  <div class="sh">Качество (/settings)</div>
+  <div class="card">
+    <div class="row"><div class="rl sm">Steps</div>
+      <input class="inf" type="number" id="cfgSteps" value="30" min="1" max="150" oninput="dbSave()"></div>
+    <div class="row"><div class="rl sm">CFG Scale</div>
+      <input class="inf" type="number" id="cfgCfg" value="7.0" min="1" max="30" step="0.5" oninput="dbSave()"></div>
+  </div>
+
+  <div class="sh">Разрешение</div>
+  <div class="card">
+    <div class="row"><div class="rl sm">Width</div>
+      <input class="inf" type="number" id="cfgW" value="832" step="64" oninput="dbSave()">
+      <span style="font-size:14px;color:var(--label3)">px</span></div>
+    <div class="row"><div class="rl sm">Height</div>
+      <input class="inf" type="number" id="cfgH" value="1216" step="64" oninput="dbSave()">
+      <span style="font-size:14px;color:var(--label3)">px</span></div>
+  </div>
+
+  <div class="sh">Освещение (/setlight)</div>
+  <div class="card"><div style="padding:12px 16px">
+    <div class="seg">
+      <button class="sb active" onclick="setLighting('natural',this)">Natural</button>
+      <button class="sb" onclick="setLighting('studio',this)">Studio</button>
+      <button class="sb" onclick="setLighting('dramatic',this)">Dramatic</button>
+      <button class="sb" onclick="setLighting('neon',this)">Neon</button>
+    </div>
+  </div></div>
+
+  <div class="sh">Камера (/setcamera)</div>
+  <div class="card"><div style="padding:12px 16px">
+    <div class="seg">
+      <button class="sb active" onclick="setCamera('front',this)">Front</button>
+      <button class="sb" onclick="setCamera('side',this)">Side</button>
+      <button class="sb" onclick="setCamera('above',this)">Above</button>
+      <button class="sb" onclick="setCamera('close',this)">Close</button>
+    </div>
+  </div></div>
+
+  <div class="sh">Memory Monitor</div>
+  <div class="card">
+    <div class="row"><div class="rl sm">Авто-стоп при OOM</div>
+      <label class="tog"><input type="checkbox" id="oomTog" checked onchange="sendA('set_oom',{enabled:this.checked})">
+        <div class="tog-t"><div class="tog-th"></div></div></label></div>
+    <div class="sw">
+      <div class="sm-row"><span class="sm">Порог VRAM (%)</span><span class="v" id="vramThV">85%</span></div>
+      <input type="range" id="vramThSl" min="50" max="99" value="85" oninput="onVramTh(this)">
+      <div class="sl-labs"><span>50%</span><span>75%</span><span>99%</span></div>
+    </div>
+  </div>
+
+  <button class="btn bp mt16 mb16" onclick="saveSettings()" style="margin-top:16px;margin-bottom:32px">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+      <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Сохранить настройки
+  </button>
+</div>
+
+<!-- ═══════════ LOGS ═══════════ -->
+<div class="page" id="page-logs">
+  <div class="pt">Logs</div>
+
+  <div class="card mb16"><div style="padding:10px 16px">
+    <div class="seg">
+      <button class="sb active" id="lf-bot"   onclick="selLogFile('bot',this)">bot.log</button>
+      <button class="sb" id="lf-debug" onclick="selLogFile('debug',this)">debug</button>
+      <button class="sb" id="lf-model" onclick="selLogFile('model',this)">model</button>
+      <button class="sb" id="lf-mgr"   onclick="selLogFile('manager',this)">manager</button>
+    </div>
+  </div></div>
+
+  <div class="lc">
+    <button class="btn bs bsm" onclick="fetchLogs()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Обновить
+    </button>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+      <input type="checkbox" id="liveTog" onchange="togLive(this)">
+      <span style="font-size:14px;color:var(--label3)">Live (/livelog)</span>
+    </label>
+    <button class="btn bsm" style="background:rgba(255,59,48,.1);color:var(--red)" onclick="clearLogs()">Очистить</button>
+    <button class="btn bs bsm" onclick="dlLog()" style="margin-left:auto">⬇ Скачать</button>
+  </div>
+  <div class="lv" id="logV"><span class="ll ld">Нажмите «Обновить»…</span></div>
+
+  <div class="sh">Последние промпты (/prompts)</div>
+  <div class="card" id="lastPromptCard">
+    <div class="pri"><div class="prt" style="color:var(--label3)">—</div></div>
+  </div>
+</div>
+
+<!-- ═══════════ FILES ═══════════ -->
+<div class="page" id="page-files">
+  <div class="pt">Files</div>
+
+  <div class="sh">Дерево проекта (/files, /ls)</div>
+  <div class="card" id="fileTree" style="overflow:hidden">
+    <div class="fi"><span class="fic">📁</span><span class="fn fd">Загрузка…</span></div>
+  </div>
+  <button class="btn bs bsm mb16" onclick="sendA('get_files')" style="margin-bottom:10px">Обновить дерево</button>
+
+  <div class="sh">Hotpatch (/hotpatch)</div>
+  <div class="card mb16">
+    <div class="p16">
+      <div class="uz" onclick="document.getElementById('hpFile').click()" id="uzEl">
+        <input type="file" id="hpFile" accept=".py" onchange="onHpFile(this)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          style="margin-bottom:8px;opacity:.4"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div>Нажмите или перетащите <strong>.py файл</strong></div>
+        <div style="font-size:12px;margin-top:4px;color:var(--label4)">Синтаксис проверяется на сервере (ast.parse)</div>
+      </div>
+      <div id="hpStatus" class="hs"></div>
+    </div>
+    <div id="hpActions" style="padding:0 16px 14px;display:none;gap:8px;flex-wrap:wrap">
+      <button class="btn bg bsm" id="btnApply" style="display:none" onclick="applyHp()">⚡ Применить без перезапуска</button>
+      <button class="btn bo bsm" onclick="sendA('rollback_last')">⟲ Откат последнего</button>
+    </div>
+  </div>
+
+  <div class="sh">Бэкапы (/backups)</div>
+  <div class="card" id="backupsList">
+    <div class="row"><div class="rl sm" style="color:var(--label4)">Загрузка…</div></div>
+  </div>
+  <div class="brow">
+    <button class="btn bs bsm w100" onclick="sendA('get_backups')">Обновить</button>
+    <button class="btn bsm" style="background:rgba(255,149,0,.12);color:var(--orange)" onclick="sendA('backups_clean')">Очистить старые (оставить 5)</button>
+  </div>
+
+  <div class="sh">Патч констант (/rewrite)</div>
+  <div class="card mb16"><div class="p16">
+    <div class="brow" style="margin-bottom:0;align-items:center;flex-wrap:wrap">
+      <input class="inil" id="rwKey" placeholder="Ключ (напр. steps)" style="flex:1;min-width:90px">
+      <input class="inil" id="rwVal" placeholder="Значение" style="width:80px">
+      <button class="btn bpu bsm" onclick="doRewrite()">Патч</button>
+    </div>
+  </div></div>
+
+  <div class="sh">Скачать файл (/getfile)</div>
+  <div class="card mb16"><div class="p16">
+    <div class="brow" style="margin-bottom:0;align-items:center">
+      <input class="tf" id="gfPath" placeholder="generated/photo_001.png"
+        style="min-height:auto;padding:10px 12px;font-size:13px;margin:0;flex:1;font-family:var(--mono)">
+      <button class="btn bs bsm" onclick="doGetFile()">Получить</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══════════ ADMIN ═══════════ -->
+<div class="page" id="page-admin">
+  <div class="pt">Admin</div>
+
+  <div class="sh">Система (/status)</div>
+  <div class="card" id="sysCard">
+    <div class="row"><div class="rl sm">Rust Manager</div>
+      <span class="badge bon" id="rustB"><span class="bd"></span> OK</span></div>
+    <div class="row"><div class="rl sm">Python Core</div>
+      <span class="badge bon" id="pyB"><span class="bd"></span> OK</span></div>
+    <div class="row"><div class="rl sm">Memory Monitor</div>
+      <span class="badge bon" id="memB"><span class="bd"></span> OK</span></div>
+    <div class="row"><div class="rl sm">Uptime</div><span class="rv" id="uptimeV">—</span></div>
+    <div class="row"><div class="rl sm">RAM</div><span class="rv" id="ramV">—</span></div>
+    <div class="row"><div class="rl sm">Backend</div><span class="rv" id="backendV">—</span></div>
+  </div>
+
+  <div class="sh">Управление ботом</div>
+  <div class="brow">
+    <button class="btn bo" style="flex:1" onclick="doRestart()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> /restart
+    </button>
+    <button class="btn bpu" style="flex:1" onclick="sendA('get_status')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/></svg> /status
+    </button>
+  </div>
+  <div class="brow">
+    <button class="btn bsm" style="flex:1;background:rgba(255,59,48,.1);color:var(--red)" onclick="doLogClear()">🗑 /logclear</button>
+    <button class="btn bs bsm" style="flex:1" onclick="sendA('get_prompts')">📋 /prompts</button>
+    <button class="btn bs bsm" style="flex:1" onclick="sendA('get_settings')">⚙️ /settings</button>
+  </div>
+
+  <div class="sh">Python REPL (/py)</div>
+  <div class="card mb16">
+    <div class="p16">
+      <textarea class="tf" id="pyCode" placeholder="print(config.STEPS)&#10;print(generator.backend)" rows="4"
+        style="font-family:var(--mono);font-size:13px"></textarea>
+    </div>
+    <div style="padding:0 16px 12px;display:flex;justify-content:flex-end;gap:8px">
+      <button class="btn bs bsm" onclick="document.getElementById('pyCode').value='';document.getElementById('pyRes').style.display='none'">Очистить</button>
+      <button class="btn bpu bsm" onclick="runPy()">▶ Выполнить</button>
+    </div>
+  </div>
+  <div class="cr" id="pyRes"></div>
+
+  <div class="sh">Shell (/cmd)</div>
+  <div class="card mb16"><div class="p16">
+    <div class="brow" style="margin-bottom:0;align-items:center">
+      <input class="tf" id="shCmd" placeholder="nvidia-smi | ls -la generated/"
+        style="min-height:auto;padding:10px 12px;font-family:var(--mono);font-size:13px;margin:0;flex:1">
+      <button class="btn bo bsm" onclick="runCmd()">Run</button>
+    </div>
+  </div></div>
+  <div class="cr" id="shRes"></div>
+</div>
+
+</div><!-- /scroll -->
+
+<!-- ─── Tab Bar ─── -->
+<nav class="tabbar">
+  <button class="ti active" id="tab-generate"   onclick="goTab('generate')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>Gen
+  </button>
+  <button class="ti" id="tab-pipeline"   onclick="goTab('pipeline')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07-1.41 1.41M8.34 15.66l-1.41 1.41m11.31 0-1.41-1.41M8.34 8.34 6.93 6.93"/></svg>Pipeline
+  </button>
+  <button class="ti" id="tab-categories" onclick="goTab('categories')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Categories
+  </button>
+  <button class="ti" id="tab-model"      onclick="goTab('model')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4M7 8h2m4 0h2M7 12h10"/></svg>Model
+  </button>
+  <button class="ti" id="tab-settings"   onclick="goTab('settings')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>Settings
+  </button>
+  <button class="ti" id="tab-logs"       onclick="goTab('logs')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>Logs
+  </button>
+  <button class="ti" id="tab-files"      onclick="goTab('files')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>Files
+  </button>
+  <button class="ti" id="tab-admin"      onclick="goTab('admin')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Admin
+  </button>
+</nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Telegram ───
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready(); tg.expand();
+  if (tg.colorScheme === 'dark') {
+    const s = document.documentElement.style;
+    s.setProperty('--bg','#1C1C1E'); s.setProperty('--card','#2C2C2E');
+    s.setProperty('--label','#FFF'); s.setProperty('--label2','#EBEBF5');
+    s.setProperty('--label3','rgba(235,235,245,.6)'); s.setProperty('--label4','rgba(235,235,245,.18)');
+    s.setProperty('--fill','rgba(118,118,128,.24)'); s.setProperty('--fill2','rgba(118,118,128,.32)');
+    s.setProperty('--sep','rgba(84,84,88,.65)');
+    document.querySelector('.tabbar').style.background = 'rgba(28,28,30,.94)';
+  }
+  tg.onEvent('message', msg => {
+    try { onMsg(typeof msg==='string' ? JSON.parse(msg) : msg); } catch(e){}
+  });
+}
+const H = t => { try{tg?.HapticFeedback?.impactOccurred(t);}catch(e){} };
+const HN = t => { try{tg?.HapticFeedback?.notificationOccurred(t);}catch(e){} };
+const HS = () => { try{tg?.HapticFeedback?.selectionChanged();}catch(e){} };
+
+function send(d) {
+  const j = JSON.stringify(d);
+  try { tg?.sendData(j); } catch(e) { console.log('[→bot]', j); }
+}
+function sendA(a, x={}) { send({action:a,...x}); }
+
+// ─── State ───
+const S = {
+  tab:'generate', gen:false, photoCnt:0, errCnt:0,
+  pl:false, delay:30, backend:'comfyui', sampler:'dpmpp_2m', scheduler:'karras',
+  lighting:'natural', camera:'front', logFile:'bot', age:18, intensity:1,
+  liveIv:null, countdown:null, pendPatch:null,
+};
+
+// ─── Toast ───
+let _tt;
+function toast(m) {
+  const e = document.getElementById('toast');
+  e.textContent = m; e.classList.add('show');
+  clearTimeout(_tt); _tt = setTimeout(()=>e.classList.remove('show'), 2600);
+}
+
+// ─── Tabs ───
+function goTab(t) {
+  if (S.tab===t) return;
+  HS();
+  document.getElementById('page-'+S.tab).classList.remove('active');
+  document.getElementById('tab-'+S.tab).classList.remove('active');
+  S.tab = t;
+  document.getElementById('page-'+t).classList.add('active');
+  document.getElementById('tab-'+t).classList.add('active');
+  if (t==='categories' && S.cats?.length===0) reqCats();
+  if (t==='model')  sendA('get_status');
+  if (t==='files')  { sendA('get_files'); sendA('get_backups'); }
+  if (t==='logs')   fetchLogs();
+  if (t==='admin')  sendA('get_status');
+  mbUpdate();
+}
+function mbUpdate() {
+  if (!tg?.MainButton) return;
+  if (S.tab==='settings') { tg.MainButton.setText('Сохранить настройки'); tg.MainButton.show(); tg.MainButton.onClick(saveSettings); }
+  else tg.MainButton.hide();
+}
+
+// ─── Generate ───
+function doGenerate() {
+  if (S.gen) return; H('medium');
+  const prompt = document.getElementById('promptField').value.trim();
+  setGen(true, 0, 'Отправка…');
+  send({action:'generate', prompt:prompt||null, backend:S.backend});
+  let p=0;
+  S._iv = setInterval(()=>{ p+=Math.random()*6; if(p>=94){clearInterval(S._iv);p=94;} setProg(p,gl(p)); }, 380);
+}
+function gl(p) {
+  return p<15?'Подготовка промпта…':p<40?'Диффузия (latents)…':p<75?'Декодирование VAE…':p<92?'Постобработка…':'Финализация…';
+}
+function setGen(a,pct=0,st='') {
+  S.gen=a;
+  const b=document.getElementById('btnGen'); b.disabled=a; b.style.opacity=a?'.5':'';
+  setProg(pct,st);
+}
+function setProg(p,s) {
+  document.getElementById('pf').style.width=p+'%';
+  document.getElementById('gs').textContent=s||'';
+}
+function setPhoto(url,ts,prompt) {
+  document.getElementById('pimg').src=url; document.getElementById('pimg').style.display='block';
+  document.getElementById('pph').style.display='none'; document.getElementById('pov').style.display='block';
+  document.getElementById('pts').textContent=ts||new Date().toLocaleTimeString('ru-RU');
+  if(prompt) document.getElementById('ppt').textContent=prompt;
+}
+function addPrompt(text,ts) {
+  if(!text) return;
+  const c = document.getElementById('recentPromptsCard');
+  if(c.querySelector('.prt[style]')) c.innerHTML='';
+  const e=document.createElement('div'); e.className='pri';
+  e.innerHTML=`<div class="prt">${esc(text)}</div><div class="prm">${esc(ts||'')}</div>`;
+  c.insertBefore(e, c.firstChild);
+  if(c.children.length>5) c.lastChild.remove();
+}
+
+// ─── Pipeline ───
+function onAutoToggle(el) {
+  H('medium'); S.pl=el.checked;
+  const b=document.getElementById('plBadge');
+  if(el.checked) {
+    b.className='badge bon'; b.innerHTML='<span class="bd"></span> Активен';
+    startCD(); send({action:'pipeline_toggle',enabled:true,delay:S.delay}); toast('Автогенерация включена');
+  } else {
+    b.className='badge boff'; b.innerHTML='<span class="bd"></span> Остановлен';
+    stopCD(); document.getElementById('nextGen').textContent='—';
+    send({action:'pipeline_toggle',enabled:false}); toast('Автогенерация выключена');
+  }
+}
+let _dd;
+function onDelay(el) {
+  S.delay=+el.value; document.getElementById('delayV').textContent=S.delay+' с';
+  clearTimeout(_dd); _dd=setTimeout(()=>{ send({action:'set_delay',delay:S.delay}); if(S.pl) startCD(); }, 300);
+}
+function startCD() {
+  stopCD(); let s=S.delay;
+  document.getElementById('nextGen').textContent=s+' с';
+  S.countdown=setInterval(()=>{ s--; if(s<=0) s=S.delay; document.getElementById('nextGen').textContent=s>0?s+' с':'Сейчас'; }, 1000);
+}
+function stopCD() { clearInterval(S.countdown); }
+
+// ─── Categories ───
+S.cats=[];
+const DCATS=[
+  {id:'style',name:'Style',emoji:'🎨',enabled:true,weight:7,count:2},
+  {id:'lighting',name:'Lighting',emoji:'💡',enabled:true,weight:6,count:1},
+  {id:'camera',name:'Camera',emoji:'📷',enabled:true,weight:5,count:1},
+  {id:'background',name:'Background',emoji:'🌄',enabled:false,weight:4,count:1},
+  {id:'clothing',name:'Clothing',emoji:'👗',enabled:true,weight:8,count:2},
+  {id:'pose',name:'Pose',emoji:'🧘',enabled:true,weight:6,count:1},
+  {id:'mood',name:'Mood',emoji:'✨',enabled:false,weight:3,count:1},
+  {id:'color',name:'Color',emoji:'🎭',enabled:true,weight:5,count:2},
+  {id:'hair',name:'Hair',emoji:'💇',enabled:true,weight:5,count:1},
+  {id:'accessories',name:'Accessories',emoji:'💎',enabled:false,weight:3,count:1},
+];
+function reqCats() { sendA('get_categories'); setTimeout(()=>{ if(!S.cats.length) renderCats(DCATS); }, 1100); }
+function renderCats(cats) {
+  S.cats=cats;
+  document.getElementById('catSk').style.display='none';
+  document.getElementById('catHint').style.display='block';
+  const c=document.getElementById('catList'); c.style.display='block'; c.innerHTML='';
+  cats.forEach(cat=>{
+    const d=document.createElement('div'); d.className='card';
+    d.innerHTML=`<div class="row"><span style="font-size:20px;flex-shrink:0">${cat.emoji}</span>
+      <div class="rl sm">${cat.name}</div>
+      <label class="tog"><input type="checkbox" ${cat.enabled?'checked':''} onchange="catTog('${cat.id}',this)">
+        <div class="tog-t"><div class="tog-th"></div></div></label></div>
+      <div id="cs-${cat.id}" style="${cat.enabled?'':'opacity:.35;pointer-events:none'}">
+        <div class="sw" style="padding-top:4px">
+          <div class="sm-row"><span class="sm">Вес</span><span class="v" id="cw-${cat.id}">${cat.weight}</span></div>
+          <input type="range" min="0" max="10" value="${cat.weight}" oninput="catSl('${cat.id}','weight',this)">
+          <div class="sl-labs"><span>0</span><span>5</span><span>10</span></div>
+        </div>
+        <div class="sw">
+          <div class="sm-row"><span class="sm">Кол-во ключевых слов</span><span class="v" id="cc-${cat.id}">${cat.count}</span></div>
+          <input type="range" min="1" max="5" value="${cat.count}" oninput="catSl('${cat.id}','count',this)">
+          <div class="sl-labs"><span>1</span><span>3</span><span>5</span></div>
+        </div>
+      </div>`;
+    c.appendChild(d);
+  });
+}
+function catTog(id,el) {
+  H('light'); const cat=S.cats.find(c=>c.id===id); if(cat) cat.enabled=el.checked;
+  const sl=document.getElementById('cs-'+id);
+  sl.style.opacity=el.checked?'':'0.35'; sl.style.pointerEvents=el.checked?'':'none';
+  dbCat(id);
+}
+const _cd={};
+function catSl(id,f,el) {
+  const cat=S.cats.find(c=>c.id===id); if(!cat) return; cat[f]=+el.value;
+  document.getElementById((f==='weight'?'cw-':'cc-')+id).textContent=el.value; dbCat(id);
+}
+function dbCat(id) {
+  clearTimeout(_cd[id]);
+  _cd[id]=setTimeout(()=>{ const cat=S.cats.find(c=>c.id===id); if(cat) send({action:'update_category',category:cat}); }, 300);
+}
+
+// ─── Model ───
+function selectBackend(id,el) {
+  H('light'); S.backend=id;
+  document.querySelectorAll('#seg-comfy,#seg-sdxl').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  send({action:'set_backend',backend:id}); toast('Бэкенд: '+(id==='comfyui'?'ComfyUI':'SDXL'));
+  document.getElementById('backendV').textContent=id;
+}
+function setSampler(v,el) {
+  H('light'); S.sampler=v;
+  el.closest('.seg').querySelectorAll('.sb').forEach(b=>b.classList.remove('active')); el.classList.add('active');
+  send({action:'set_sampler',sampler:v});
+}
+function setScheduler(v,el) {
+  H('light'); S.scheduler=v;
+  el.closest('.seg').querySelectorAll('.sb').forEach(b=>b.classList.remove('active')); el.classList.add('active');
+  send({action:'set_scheduler',scheduler:v});
+}
+function doModel(cmd) {
+  H('medium'); send({action:'model_'+cmd,backend:S.backend});
+  toast(cmd==='start'?'Запуск модели…':'Остановка модели…');
+}
+function updModel(d) {
+  const on=d.online;
+  const b=document.getElementById('mdlBadge');
+  b.className='badge '+(on?'bon':'boff');
+  b.innerHTML='<span class="bd"></span> '+(on?'Online':'Offline');
+  if(d.gpu) document.getElementById('gpuN').textContent=d.gpu;
+  if(d.checkpoint) document.getElementById('mdlCkpt').textContent=d.checkpoint;
+  if(d.vram_total>0) {
+    const pct=Math.round(d.vram_used/d.vram_total*100);
+    document.getElementById('vramP').textContent=pct+'%';
+    document.getElementById('vramU').textContent=d.vram_used.toFixed(1)+' GB';
+    document.getElementById('vramT').textContent=d.vram_total.toFixed(1)+' GB';
+    const f=document.getElementById('vramF'); f.style.width=pct+'%';
+    f.className='vf'+(pct>85?' danger':pct>65?' warn':'');
+  }
+  if(d.models?.length) {
+    document.getElementById('mdlList').innerHTML=d.models.map(m=>`
+      <div class="row"><div class="rl sm" style="font-family:var(--mono);font-size:12px">${esc(m)}</div></div>`).join('');
+  }
+  if(d.uptime) document.getElementById('uptimeV').textContent=d.uptime;
+  if(d.ram)    document.getElementById('ramV').textContent=d.ram;
+  if(d.backend) document.getElementById('backendV').textContent=d.backend;
+  ['rust_ok','python_ok','mem_ok'].forEach((k,i)=>{
+    if(d[k]!=null) { const ids=['rustB','pyB','memB'];
+      const el=document.getElementById(ids[i]);
+      el.className='badge '+(d[k]?'bon':'boff');
+      el.innerHTML='<span class="bd"></span> '+(d[k]?'OK':'Error');
+    }
+  });
+}
+
+// ─── Settings ───
+function setLighting(v,el) { H('light'); S.lighting=v; el.closest('.seg').querySelectorAll('.sb').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
+function setCamera(v,el)   { H('light'); S.camera=v;   el.closest('.seg').querySelectorAll('.sb').forEach(b=>b.classList.remove('active')); el.classList.add('active'); }
+let _sv; function dbSave() { clearTimeout(_sv); _sv=setTimeout(()=>{},300); }
+let _vtd;
+function onVramTh(el) {
+  document.getElementById('vramThV').textContent=el.value+'%';
+  clearTimeout(_vtd); _vtd=setTimeout(()=>send({action:'set_vram_thresh',threshold:+el.value}),300);
+}
+function saveSettings() {
+  H('medium');
+  send({ action:'save_settings',
+    steps:+document.getElementById('cfgSteps').value, cfg:+document.getElementById('cfgCfg').value,
+    width:+document.getElementById('cfgW').value, height:+document.getElementById('cfgH').value,
+    lighting:S.lighting, camera:S.camera, sampler:S.sampler, scheduler:S.scheduler,
+    vram_threshold:+document.getElementById('vramThSl').value,
+    oom_auto:document.getElementById('oomTog').checked,
+    age:S.age, intensity:S.intensity });
+  HN('success'); toast('✓ Настройки сохранены');
+}
+
+let _ageDeb, _intDeb;
+function onAgeSl(el) {
+  S.age = +el.value;
+  document.getElementById('ageV').textContent = el.value;
+  clearTimeout(_ageDeb);
+  _ageDeb = setTimeout(() => sendA('set_age', {age: S.age}), 300);
+}
+function onIntensitySl(el) {
+  S.intensity = +el.value;
+  document.getElementById('intensityV').textContent = el.value;
+  clearTimeout(_intDeb);
+  _intDeb = setTimeout(() => sendA('set_intensity', {intensity: S.intensity}), 300);
+}
+
+// ─── Logs ───
+function selLogFile(f,el) {
+  H('light'); S.logFile=f;
+  document.querySelectorAll('[id^="lf-"]').forEach(b=>b.classList.remove('active')); el.classList.add('active');
+  fetchLogs();
+}
+function fetchLogs() { sendA('get_logs',{file:S.logFile,lines:80}); document.getElementById('logV').innerHTML='<span class="ll ld">Загрузка…</span>'; }
+function renderLogs(lines) {
+  const v=document.getElementById('logV');
+  v.innerHTML=lines.map(l=>{
+    let c='ll'; if(/ERROR|Exception/.test(l)) c+=' le'; else if(/WARN/i.test(l)) c+=' lw';
+    else if(/INFO/i.test(l)) c+=' li'; else if(/DEBUG/i.test(l)) c+=' ld'; else if(/OK|✓/.test(l)) c+=' lok';
+    return `<span class="${c}">${esc(l)}</span>`;
+  }).join('\n'); v.scrollTop=v.scrollHeight;
+}
+function togLive(el) {
+  H('light'); if(el.checked) { sendA('livelog_on'); S.liveIv=setInterval(fetchLogs,3000); toast('Live лог включён'); }
+  else { sendA('livelog_off'); clearInterval(S.liveIv); toast('Live лог выключен'); }
+}
+function clearLogs() {
+  H('medium'); if(!confirm('Очистить?')) return;
+  sendA('logclear',{file:S.logFile}); document.getElementById('logV').innerHTML='<span class="ll ld">Очищено.</span>'; toast('Логи очищены');
+}
+function dlLog() { sendA('download_log',{file:S.logFile}); toast('Файл отправлен в чат'); }
+function appendLog(line) {
+  const v=document.getElementById('logV');
+  let c='ll'; if(/ERROR|Exception/.test(line)) c+=' le'; else if(/WARN/i.test(line)) c+=' lw'; else if(/INFO/i.test(line)) c+=' li';
+  const el=document.createElement('span'); el.className=c; el.textContent=line;
+  v.appendChild(el); if(v.children.length>300) v.firstChild.remove(); v.scrollTop=v.scrollHeight;
+}
+
+// ─── Files ───
+function renderFileTree(files) {
+  const t=document.getElementById('fileTree');
+  if(!files?.length) { t.innerHTML='<div class="fi"><span class="fn" style="color:var(--label3)">Нет данных</span></div>'; return; }
+  t.innerHTML=files.map(f=>{
+    const ic=f.type==='dir'?'📁':getIcon(f.name);
+    return `<div class="fi" onclick="onFile('${esc(f.path||f.name)}','${f.type||"file"}')">
+      <span class="fic">${ic}</span><span class="fn ${f.type==='dir'?'fd':''}">${esc(f.name)}</span>
+      <span class="fsz">${f.size||''}</span></div>`;
+  }).join('');
+}
+function getIcon(n) {
+  return /\.py$/.test(n)?'🐍':/\.json$/.test(n)?'📋':/\.log$/.test(n)?'📄':/\.toml|\.env/.test(n)?'⚙️':/\.(png|jpg|webp)$/.test(n)?'🖼':'📄';
+}
+function onFile(path,type) {
+  H('light');
+  if(type==='file') { document.getElementById('gfPath').value=path; goTab('admin'); toast('Путь → /getfile'); }
+  else sendA('ls',{path});
+}
+function renderBackups(bk) {
+  const l=document.getElementById('backupsList');
+  if(!bk?.length) { l.innerHTML='<div class="row"><div class="rl sm" style="color:var(--label4)">Бэкапов нет</div></div>'; return; }
+  l.innerHTML=bk.map(b=>`<div class="bki">
+    <div class="bkm"><div class="bkn">${esc(b.file)}</div><div class="bkt">${esc(b.timestamp||'')}</div></div>
+    <button class="btn bs bsm" onclick="doRollback('${esc(b.file)}')">⟲ Откат</button>
+  </div>`).join('');
+}
+function doRollback(f) { H('medium'); sendA('rollback',{file:f}); toast('Откат: '+f); }
+
+// Hotpatch
+function onHpFile(input) {
+  const file=input.files[0]; if(!file) return;
+  const st=document.getElementById('hpStatus'), btn=document.getElementById('btnApply');
+  document.getElementById('hpActions').style.display='flex';
+  const r=new FileReader();
+  r.onload=e=>{
+    S.pendPatch={name:file.name,code:e.target.result};
+    st.textContent=`✓ ${file.name} (${(file.size/1024).toFixed(1)} KB) — ожидает проверки сервером`;
+    st.className='hs hok'; st.style.display='block'; btn.style.display='flex';
+    document.getElementById('uzEl').classList.add('drag');
+    setTimeout(()=>document.getElementById('uzEl').classList.remove('drag'),600);
+  };
+  r.readAsText(file);
+}
+function applyHp() {
+  if(!S.pendPatch) return; H('medium');
+  send({action:'hotpatch',filename:S.pendPatch.name,code:S.pendPatch.code}); toast('Hotpatch отправлен…');
+}
+function doRewrite() {
+  const k=document.getElementById('rwKey').value.trim(), v=document.getElementById('rwVal').value.trim();
+  if(!k||!v) { toast('Укажи ключ и значение'); return; }
+  H('medium'); sendA('rewrite',{key:k,value:v}); toast(`Патч: ${k} = ${v}`);
+}
+function doGetFile() {
+  const p=document.getElementById('gfPath').value.trim(); if(!p) return;
+  H('light'); sendA('getfile',{path:p}); toast('Запрос: '+p);
+}
+
+// ─── Admin ───
+function doRestart() { H('medium'); if(!confirm('Перезапустить бота?')) return; sendA('restart'); toast('Перезапуск…'); }
+function doLogClear() { H('medium'); if(!confirm('Очистить все логи?')) return; sendA('logclear_all'); toast('Логи очищены'); }
+function runPy() {
+  H('medium'); const code=document.getElementById('pyCode').value.trim(); if(!code) return;
+  sendA('py_exec',{code}); const r=document.getElementById('pyRes'); r.style.display='block'; r.textContent='⏳ Выполнение…';
+}
+function runCmd() {
+  H('medium'); const cmd=document.getElementById('shCmd').value.trim(); if(!cmd) return;
+  sendA('shell_exec',{cmd}); const r=document.getElementById('shRes'); r.style.display='block'; r.textContent='⏳ Выполнение…';
+}
+
+// ─── Bot message handler ───
+function onMsg(m) {
+  switch(m.type) {
+    case 'generate_progress': clearInterval(S._iv); setProg(m.pct, m.label||gl(m.pct)); break;
+    case 'generate_done':
+      clearInterval(S._iv); setGen(false,100,'✓ Готово');
+      setTimeout(()=>setProg(0,'Ожидание…'),1600);
+      if(m.photo_url) setPhoto(m.photo_url,m.timestamp,m.prompt);
+      if(m.prompt) addPrompt(m.prompt,m.timestamp);
+      S.photoCnt++; document.getElementById('photoCnt').textContent=S.photoCnt;
+      HN('success'); toast('Фото сгенерировано!'); break;
+    case 'generate_error':
+      clearInterval(S._iv); setGen(false,0,'✗ '+(m.error||'Ошибка'));
+      S.errCnt++; document.getElementById('errCnt').textContent=S.errCnt;
+      HN('error'); toast('Ошибка: '+(m.error||'неизвестна')); break;
+    case 'categories': renderCats(m.categories); break;
+    case 'status': updModel(m); break;
+    case 'pipeline_tick':
+      if(m.count!=null) { S.photoCnt=m.count; document.getElementById('photoCnt').textContent=S.photoCnt; } break;
+    case 'pipeline_state':
+      document.getElementById('autoTog').checked=!!m.active;
+      if(m.active) { document.getElementById('plBadge').className='badge bon'; document.getElementById('plBadge').innerHTML='<span class="bd"></span> Активен'; }
+      if(m.delay!=null) { S.delay=m.delay; document.getElementById('delaySl').value=m.delay; document.getElementById('delayV').textContent=m.delay+' с'; }
+      break;
+    case 'logs': renderLogs(m.lines||[]); break;
+    case 'log_line': appendLog(m.line); break;
+    case 'settings_loaded':
+      if(m.steps) document.getElementById('cfgSteps').value=m.steps;
+      if(m.cfg)   document.getElementById('cfgCfg').value=m.cfg;
+      if(m.width) document.getElementById('cfgW').value=m.width;
+      if(m.height)document.getElementById('cfgH').value=m.height;
+      if(m.vram_threshold) { document.getElementById('vramThSl').value=m.vram_threshold; document.getElementById('vramThV').textContent=m.vram_threshold+'%'; }
+      if(m.age!=null) { S.age=m.age; document.getElementById('ageSl').value=m.age; document.getElementById('ageV').textContent=m.age; }
+      if(m.intensity!=null) { S.intensity=m.intensity; document.getElementById('intensitySl').value=m.intensity; document.getElementById('intensityV').textContent=m.intensity; }
+      break;
+    case 'file_tree': renderFileTree(m.files); break;
+    case 'backups': renderBackups(m.backups); break;
+    case 'hotpatch_ok': {
+      const s=document.getElementById('hpStatus');
+      s.textContent=`✓ ${m.file} применён. Перезагружено: ${(m.reloaded||[]).join(', ')||'—'}. Бэкап: ${m.backup||'—'}`;
+      s.className='hs hok'; s.style.display='block'; HN('success'); toast('Hotpatch применён!'); break;
+    }
+    case 'hotpatch_err': {
+      const s=document.getElementById('hpStatus');
+      s.textContent='✗ '+m.error; s.className='hs herr'; s.style.display='block'; HN('error'); toast('Ошибка hotpatch'); break;
+    }
+    case 'py_result': { const r=document.getElementById('pyRes'); r.style.display='block'; r.textContent=m.output||'(нет вывода)'; break; }
+    case 'cmd_result': { const r=document.getElementById('shRes'); r.style.display='block'; r.textContent=m.output||'(нет вывода)'; break; }
+    case 'prompts':
+      if(m.prompts?.length) {
+        const el=document.getElementById('lastPromptCard');
+        el.innerHTML=m.prompts.map(p=>`<div class="pri"><div class="prt">${esc(p.text||p)}</div><div class="prm">${esc(p.timestamp||'')}</div></div>`).join('');
+        const rc=document.getElementById('recentPromptsCard');
+        rc.innerHTML=m.prompts.slice(0,5).map(p=>`<div class="pri"><div class="prt">${esc(p.text||p)}</div><div class="prm">${esc(p.timestamp||'')}</div></div>`).join('');
+      } break;
+    case 'watchdog': {
+      const b=document.getElementById('wdBadge'); b.className='badge '+(m.ok?'bon':'bwarn');
+      b.innerHTML='<span class="bd"></span> '+(m.ok?'Активен':'Нет ответа'); break;
+    }
+  }
+}
+
+// ─── Utils ───
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ─── Init ───
+(function() {
+  sendA('init');
+  mbUpdate();
+  // Demo fallback for file:// / dev
+  if (!tg?.initData) {
+    setTimeout(() => {
+      updModel({online:true, gpu:'RTX 4090 24GB', checkpoint:'RealVisXL_V4.safetensors',
+        vram_used:9.4, vram_total:24, models:['RealVisXL_V4.safetensors','dreamshaper_xl.safetensors'],
+        uptime:'2д 4ч 18м', ram:'8.2 / 32 GB', backend:'comfyui',
+        rust_ok:true, python_ok:true, mem_ok:true});
+      renderLogs([
+        '[2024-01-15 14:32:01] INFO  Bot started OK',
+        '[2024-01-15 14:32:02] INFO  ComfyUI backend loaded',
+        '[2024-01-15 14:32:10] INFO  Pipeline restored (active=True, delay=30)',
+        '[2024-01-15 14:35:44] INFO  Generated photo_042.png (4.2s) ✓',
+        '[2024-01-15 14:36:18] WARN  VRAM usage 78% — monitor watching',
+        '[2024-01-15 14:36:20] INFO  Generated photo_043.png (3.9s) ✓',
+        '[2024-01-15 14:38:01] DEBUG Watchdog tick OK',
+      ]);
+      renderFileTree([
+        {name:'telegram_core.py',type:'file',size:'18 KB'},{name:'generator.py',type:'file',size:'22 KB'},
+        {name:'config.py',type:'file',size:'6 KB'},{name:'memory_monitor.py',type:'file',size:'4 KB'},
+        {name:'logger_setup.py',type:'file',size:'2 KB'},{name:'backends',type:'dir'},
+        {name:'config',type:'dir'},{name:'logs',type:'dir'},{name:'generated',type:'dir'},
+      ]);
+      renderBackups([
+        {file:'backends/comfy.py',timestamp:'2024-01-15 14:20:11'},
+        {file:'config.py',timestamp:'2024-01-14 09:44:02'},
+      ]);
+    }, 900);
+  }
+})();
+</script>
+</body>
+</html>
